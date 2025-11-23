@@ -10,8 +10,8 @@ export const getToday = (): string => {
  */
 export const formatDate = (date: Date): string => {
   const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  const day = date.getDate().toString().padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
 
@@ -42,8 +42,8 @@ export const getFirstDayOfMonth = (year: number, month: number): number => {
 export const getMonthDates = (year: number, month: number): string[] => {
   const daysInMonth = getDaysInMonth(year, month);
   return Array.from({ length: daysInMonth }, (_, i) => {
-    const day = String(i + 1).padStart(2, "0");
-    const m = String(month).padStart(2, "0");
+    const day = (i + 1).toString().padStart(2, "0");
+    const m = month.toString().padStart(2, "0");
     return `${year}-${m}-${day}`;
   });
 };
