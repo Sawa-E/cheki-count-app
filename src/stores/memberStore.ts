@@ -26,7 +26,7 @@ export const useMemberStore = create<MemberStore>()(
       addMember: (member) => {
         const newMember = {
           ...member,
-          id: `member_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          id: `member_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
           createdAt: new Date().toISOString(),
         };
 

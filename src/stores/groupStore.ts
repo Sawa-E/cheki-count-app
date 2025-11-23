@@ -27,7 +27,7 @@ export const useGroupStore = create<GroupStore>()(
           ...group,
           id: `group_${Date.now()}_${Math.random()
             .toString(36)
-            .substr(2, 9)}`,
+            .substring(2, 11)}`,
           createdAt: new Date().toISOString(),
         };
 

@@ -69,7 +69,8 @@ export default function CountScreen() {
 
   // カウント追加
   const handleCount = (memberId: string, ticketTypeId: string) => {
-    addRecord(memberId, ticketTypeId, 1, selectedDate);
+    const ticket = ticketTypes.find((t) => t.id === ticketTypeId);
+    addRecord(memberId, ticketTypeId, 1, selectedDate, ticket?.price);
   };
 
   // 推しごとの券種別カウント集計
