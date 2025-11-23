@@ -18,17 +18,21 @@ export default function CountScreen() {
   const flatListRef = useRef<FlatList>(null);
 
   const selectedGroupId = useGroupStore((state) => state.selectedGroupId);
-  const members = useMemberStore((state) =>
-    state.members.filter((m) => m.groupId === selectedGroupId)
-  );
+  const allMembers = useMemberStore((state) => state.members);
   const ticketTypes = useTicketStore((state) => state.ticketTypes);
+  const allRecords = useCountStore((state) => state.records);
+  const addRecord = useCountStore((state) => state.addRecord);
 
-  // ✅ 修正: selectorで直接フィルタリング
-  const todayRecords = useCountStore((state) =>
-    state.records.filter((r) => r.date === selectedDate)
+  // ✅ 修正: useMemo でフィルタリング（selector 内ではなく）
+  const members = useMemo(
+    () => allMembers.filter((m) => m.groupId === selectedGroupId),
+    [allMembers, selectedGroupId]
   );
 
-  const addRecord = useCountStore((state) => state.addRecord);
+  const todayRecords = useMemo(
+    () => allRecords.filter((r) => r.date === selectedDate),
+    [allRecords, selectedDate]
+  );
 
   // 日付変更
   const changeDate = (direction: number) => {
