@@ -1,11 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useRef, useState } from "react";
-import {
-  FlatList,
-  Text,
-  View,
-  ViewToken,
-} from "react-native";
+import { FlatList, Text, View, ViewToken } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { DateSelector } from "../../src/components/DateSelector";
 import { MemberCard } from "../../src/components/MemberCard";
@@ -27,13 +22,13 @@ export default function CountScreen() {
     state.members.filter((m) => m.groupId === selectedGroupId)
   );
   const ticketTypes = useTicketStore((state) => state.ticketTypes);
-  const records = useCountStore((state) => state.records);
-  const addRecord = useCountStore((state) => state.addRecord);
 
-  // 選択された日付のレコードのみフィルタ
-  const todayRecords = useMemo(() => {
-    return records.filter((r) => r.date === selectedDate);
-  }, [records, selectedDate]);
+  // ✅ 修正: selectorで直接フィルタリング
+  const todayRecords = useCountStore((state) =>
+    state.records.filter((r) => r.date === selectedDate)
+  );
+
+  const addRecord = useCountStore((state) => state.addRecord);
 
   // 日付変更
   const changeDate = (direction: number) => {

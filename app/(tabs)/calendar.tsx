@@ -1,12 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
-import {
-  Alert,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CalendarGrid } from "../../src/components/CalendarGrid";
 import { MemoModal } from "../../src/components/MemoModal";
@@ -23,7 +17,7 @@ export default function CalendarScreen() {
   const records = useCountStore((state) => state.records);
   const members = useMemberStore((state) => state.members);
   const ticketTypes = useTicketStore((state) => state.ticketTypes);
-  const memos = useMemoStore((state) => state.memos);
+  const memos = useMemoStore((state) => state.memos || []);
   const setMemo = useMemoStore((state) => state.setMemo);
   const getMemo = useMemoStore((state) => state.getMemo);
   const deleteMemo = useMemoStore((state) => state.deleteMemo);
@@ -61,15 +55,19 @@ export default function CalendarScreen() {
   }, [selectedDate]);
 
   // 選択された日付のデータ
-  const selectedDateStr = selectedDate.toISOString().split("T")[0];
+  const selectedDateStr = useMemo(
+    () => selectedDate.toISOString().split("T")[0],
+    [selectedDate]
+  );
 
-  const dayRecords = useMemo(() => {
-    return records.filter((r) => r.date === selectedDateStr);
-  }, [records, selectedDateStr]);
+  const dayRecords = useCountStore((state) =>
+    state.records.filter((r) => r.date === selectedDateStr)
+  );
 
-  const dayMemo = useMemo(() => {
-    return memos[selectedDateStr] || "";
-  }, [memos, selectedDateStr]);
+  const dayMemo = useMemo(
+    () => memos?.find((m: any) => m.date === selectedDateStr) || null,
+    [memos, selectedDateStr]
+  );
 
   // 日付ごとのカウント数を計算
   const dateCountMap = useMemo(() => {
