@@ -2,27 +2,29 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-interface MemoStore {
-  memos: Record<string, string>; // date: memo
-
-  setMemo: (date: string, memo: string) => void;
-  getMemo: (date: string) => string;
+interface MemoState {
+  memos: Record<string, string>; // { "2025-01-15": "メモ内容" }
+  getMemo: (date: string) => string | null;
+  setMemo: (date: string, content: string) => void;
   deleteMemo: (date: string) => void;
 }
 
-export const useMemoStore = create<MemoStore>()(
+export const useMemoStore = create<MemoState>()(
   persist(
     (set, get) => ({
       memos: {},
 
-      setMemo: (date, memo) =>
-        set((state) => ({
-          memos: { ...state.memos, [date]: memo },
-        })),
-
       getMemo: (date) => {
-        return get().memos[date] || "";
+        return get().memos[date] || null;
       },
+
+      setMemo: (date, content) =>
+        set((state) => ({
+          memos: {
+            ...state.memos,
+            [date]: content,
+          },
+        })),
 
       deleteMemo: (date) =>
         set((state) => {

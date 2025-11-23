@@ -1,253 +1,352 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useMemo, useState } from "react";
-import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useMemo, useRef, useState } from "react";
+import {
+  FlatList,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+  ViewToken,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { CalendarGrid } from "../../src/components/CalendarGrid";
-import { MemoModal } from "../../src/components/MemoModal";
 import { useCountStore } from "../../src/stores/countStore";
+import { useGroupStore } from "../../src/stores/groupStore";
 import { useMemberStore } from "../../src/stores/memberStore";
-import { useMemoStore } from "../../src/stores/memoStore";
 import { useTicketStore } from "../../src/stores/ticketStore";
 
-export default function CalendarScreen() {
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [showMemoModal, setShowMemoModal] = useState(false);
-  const [memoText, setMemoText] = useState("");
+export default function CountScreen() {
+  const [selectedDate, setSelectedDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
+  const [currentMemberIndex, setCurrentMemberIndex] = useState(0);
+  const flatListRef = useRef<FlatList>(null);
 
-  const records = useCountStore((state) => state.records);
-  const members = useMemberStore((state) => state.members);
+  // ✅ 修正: Store から直接取得（selector を使わない）
+  const selectedGroupId = useGroupStore((state) => state.selectedGroupId);
+  const allMembers = useMemberStore((state) => state.members);
   const ticketTypes = useTicketStore((state) => state.ticketTypes);
-  const memos = useMemoStore((state) => state.memos || []);
-  const setMemo = useMemoStore((state) => state.setMemo);
-  const getMemo = useMemoStore((state) => state.getMemo);
-  const deleteMemo = useMemoStore((state) => state.deleteMemo);
+  const allRecords = useCountStore((state) => state.records);
+  const addRecord = useCountStore((state) => state.addRecord);
 
-  // 年月を変更
-  const changeMonth = (direction: number) => {
-    const newDate = new Date(selectedDate);
-    newDate.setMonth(newDate.getMonth() + direction);
-    setSelectedDate(newDate);
-  };
-
-  // カレンダーの日付配列を生成
-  const calendarDays = useMemo(() => {
-    const year = selectedDate.getFullYear();
-    const month = selectedDate.getMonth();
-
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startDayOfWeek = firstDay.getDay();
-
-    const days: (Date | null)[] = [];
-
-    // 前月の空白
-    for (let i = 0; i < startDayOfWeek; i++) {
-      days.push(null);
-    }
-
-    // 当月の日付
-    for (let i = 1; i <= daysInMonth; i++) {
-      days.push(new Date(year, month, i));
-    }
-
-    return days;
-  }, [selectedDate]);
-
-  // 選択された日付のデータ
-  const selectedDateStr = useMemo(
-    () => selectedDate.toISOString().split("T")[0],
-    [selectedDate]
+  // ✅ 修正: useMemo でフィルタリング（selector 内ではなく）
+  const members = useMemo(
+    () => allMembers.filter((m) => m.groupId === selectedGroupId),
+    [allMembers, selectedGroupId]
   );
 
-  const dayRecords = useCountStore((state) =>
-    state.records.filter((r) => r.date === selectedDateStr)
+  const todayRecords = useMemo(
+    () => allRecords.filter((r) => r.date === selectedDate),
+    [allRecords, selectedDate]
   );
 
-  const dayMemo = useMemo(
-    () => memos?.find((m: any) => m.date === selectedDateStr) || null,
-    [memos, selectedDateStr]
-  );
-
-  // 日付ごとのカウント数を計算
-  const dateCountMap = useMemo(() => {
-    const map: Record<string, number> = {};
-    records.forEach((record) => {
-      map[record.date] = (map[record.date] || 0) + record.count;
+  // 日付変更
+  const changeDate = useCallback((direction: number) => {
+    setSelectedDate((prev) => {
+      const currentDate = new Date(prev);
+      currentDate.setDate(currentDate.getDate() + direction);
+      return currentDate.toISOString().split("T")[0];
     });
-    return map;
-  }, [records]);
+  }, []);
 
-  // 集計データ
-  const summary = useMemo(() => {
-    const totalCount = dayRecords.reduce((sum, r) => sum + r.count, 0);
-    const totalAmount = dayRecords.reduce((sum, r) => {
+  // 今日に戻る
+  const goToToday = useCallback(() => {
+    setSelectedDate(new Date().toISOString().split("T")[0]);
+  }, []);
+
+  // 日付フォーマット
+  const formatDate = useCallback((dateStr: string) => {
+    const date = new Date(dateStr);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const dateOnly = dateStr;
+    const todayStr = today.toISOString().split("T")[0];
+    const yesterdayStr = yesterday.toISOString().split("T")[0];
+
+    if (dateOnly === todayStr) {
+      return "今日";
+    } else if (dateOnly === yesterdayStr) {
+      return "昨日";
+    } else {
+      return `${date.getMonth() + 1}/${date.getDate()}`;
+    }
+  }, []);
+
+  // カウント追加
+  const handleCount = useCallback(
+    (memberId: string, ticketTypeId: string) => {
+      addRecord(memberId, ticketTypeId, 1, selectedDate);
+    },
+    [addRecord, selectedDate]
+  );
+
+  // 推しごとの券種別カウント集計
+  const getMemberTicketCount = useCallback(
+    (memberId: string, ticketTypeId: string) => {
+      return todayRecords
+        .filter(
+          (r) => r.memberId === memberId && r.ticketTypeId === ticketTypeId
+        )
+        .reduce((sum, r) => sum + r.count, 0);
+    },
+    [todayRecords]
+  );
+
+  // 推しごとの合計
+  const getMemberTotal = useCallback(
+    (memberId: string) => {
+      const memberRecords = todayRecords.filter((r) => r.memberId === memberId);
+      const count = memberRecords.reduce((sum, r) => sum + r.count, 0);
+      const amount = memberRecords.reduce((sum, r) => {
+        const ticket = ticketTypes.find((t) => t.id === r.ticketTypeId);
+        return sum + r.count * (ticket?.price || 0);
+      }, 0);
+      return { count, amount };
+    },
+    [todayRecords, ticketTypes]
+  );
+
+  // 全体の合計
+  const grandTotal = useMemo(() => {
+    const count = todayRecords.reduce((sum, r) => sum + r.count, 0);
+    const amount = todayRecords.reduce((sum, r) => {
       const ticket = ticketTypes.find((t) => t.id === r.ticketTypeId);
       return sum + r.count * (ticket?.price || 0);
     }, 0);
+    return { count, amount };
+  }, [todayRecords, ticketTypes]);
 
-    return { totalCount, totalAmount };
-  }, [dayRecords, ticketTypes]);
-
-  // メモの保存
-  const handleSaveMemo = () => {
-    if (!memoText.trim()) {
-      Alert.alert("エラー", "メモを入力してください");
-      return;
+  // 推し切り替え時のコールバック
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      if (viewableItems.length > 0 && viewableItems[0].index !== null) {
+        setCurrentMemberIndex(viewableItems[0].index);
+      }
     }
+  ).current;
 
-    setMemo(selectedDateStr, memoText.trim());
-    setShowMemoModal(false);
-    setMemoText("");
-  };
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 50,
+  }).current;
 
-  // メモの削除
-  const handleDeleteMemo = () => {
-    if (dayMemo) {
-      Alert.alert("確認", "このメモを削除しますか？", [
-        { text: "キャンセル", style: "cancel" },
-        {
-          text: "削除",
-          style: "destructive",
-          onPress: () => {
-            deleteMemo(selectedDateStr);
-            setShowMemoModal(false);
-            setMemoText("");
-          },
-        },
-      ]);
-    }
-  };
+  // メンバーカードのレンダリング
+  const renderMemberCard = useCallback(
+    ({ item: member }: { item: (typeof members)[0] }) => {
+      const total = getMemberTotal(member.id);
 
-  // メモモーダルを閉じる
-  const handleCloseMemoModal = () => {
-    setShowMemoModal(false);
-    setMemoText("");
-  };
-
-  // メモモーダルを開く
-  const openMemoModal = () => {
-    setMemoText(dayMemo || "");
-    setShowMemoModal(true);
-  };
-
-  return (
-    <SafeAreaView className="flex-1 bg-gray-50">
-      <ScrollView>
-        {/* ヘッダー */}
-        <View className="bg-white p-4 border-b border-gray-200">
-          <View className="flex-row items-center justify-between">
-            <TouchableOpacity onPress={() => changeMonth(-1)} className="p-2">
-              <Ionicons name="chevron-back" size={24} color="#6366f1" />
-            </TouchableOpacity>
-
-            <Text className="text-xl font-bold text-gray-800">
-              {selectedDate.getFullYear()}年 {selectedDate.getMonth() + 1}月
-            </Text>
-
-            <TouchableOpacity onPress={() => changeMonth(1)} className="p-2">
-              <Ionicons name="chevron-forward" size={24} color="#6366f1" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* カレンダー */}
-        <CalendarGrid
-          calendarDays={calendarDays}
-          selectedDateStr={selectedDateStr}
-          dateCountMap={dateCountMap}
-          onSelectDate={setSelectedDate}
-        />
-
-        {/* 選択日の詳細 */}
-        <View className="bg-white m-4 rounded-xl shadow-sm p-4">
-          <View className="flex-row items-center justify-between mb-4">
-            <Text className="text-lg font-bold text-gray-800">
-              {selectedDate.getMonth() + 1}月{selectedDate.getDate()}日の記録
-            </Text>
-            <TouchableOpacity
-              onPress={openMemoModal}
-              className="flex-row items-center"
-            >
-              <Ionicons name="create-outline" size={20} color="#6366f1" />
-              <Text className="text-indigo-600 ml-1">メモ</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* メモ表示 */}
-          {dayMemo && (
-            <View className="bg-yellow-50 p-3 rounded-lg mb-4 border border-yellow-200">
-              <Text className="text-gray-700">{dayMemo}</Text>
-            </View>
-          )}
-
-          {/* 集計 */}
-          <View className="flex-row mb-4">
-            <View className="flex-1 bg-indigo-50 p-3 rounded-lg mr-2">
-              <Text className="text-gray-600 text-xs mb-1">合計枚数</Text>
-              <Text className="text-indigo-600 text-2xl font-bold">
-                {summary.totalCount}枚
+      return (
+        <View className="w-screen px-4">
+          {/* 推し情報 */}
+          <View className="bg-white rounded-xl shadow-sm p-4 mb-4">
+            <View className="items-center mb-4">
+              <View
+                className="w-20 h-20 rounded-full items-center justify-center mb-2"
+                style={{ backgroundColor: member.color }}
+              >
+                <Text className="text-white text-3xl font-bold">
+                  {member.name.charAt(0)}
+                </Text>
+              </View>
+              <Text className="text-2xl font-bold text-gray-800">
+                {member.name}
               </Text>
             </View>
-            <View className="flex-1 bg-green-50 p-3 rounded-lg ml-2">
-              <Text className="text-gray-600 text-xs mb-1">合計金額</Text>
-              <Text className="text-green-600 text-2xl font-bold">
-                ¥{summary.totalAmount.toLocaleString()}
-              </Text>
-            </View>
-          </View>
 
-          {/* 記録リスト */}
-          {dayRecords.length > 0 ? (
-            <View>
-              <Text className="text-gray-600 font-medium mb-2">詳細</Text>
-              {dayRecords.map((record) => {
-                const member = members.find((m) => m.id === record.memberId);
-                const ticket = ticketTypes.find(
-                  (t) => t.id === record.ticketTypeId
-                );
+            {/* 今日の合計 */}
+            <View className="flex-row bg-gray-50 rounded-lg p-3 mb-4">
+              <View className="flex-1 items-center border-r border-gray-200">
+                <Text className="text-gray-600 text-xs mb-1">今日の枚数</Text>
+                <Text className="text-indigo-600 text-xl font-bold">
+                  {total.count}枚
+                </Text>
+              </View>
+              <View className="flex-1 items-center">
+                <Text className="text-gray-600 text-xs mb-1">今日の金額</Text>
+                <Text className="text-green-600 text-xl font-bold">
+                  ¥{total.amount.toLocaleString()}
+                </Text>
+              </View>
+            </View>
+
+            {/* 券種リスト */}
+            <ScrollView className="max-h-96">
+              {ticketTypes.map((ticket) => {
+                const count = getMemberTicketCount(member.id, ticket.id);
 
                 return (
                   <View
-                    key={record.id}
-                    className="flex-row items-center justify-between py-2 border-b border-gray-100"
+                    key={ticket.id}
+                    className="mb-3 rounded-lg overflow-hidden"
+                    style={{ backgroundColor: ticket.color }}
                   >
-                    <View className="flex-1">
-                      <Text className="text-gray-800 font-medium">
-                        {member?.name || "不明"}
-                      </Text>
-                      <Text className="text-gray-500 text-xs">
-                        {ticket?.name || "不明"}
-                      </Text>
-                    </View>
-                    <Text className="text-gray-800 font-bold">
-                      {record.count}枚
-                    </Text>
+                    <TouchableOpacity
+                      onPress={() => handleCount(member.id, ticket.id)}
+                      className="p-4"
+                      activeOpacity={0.7}
+                    >
+                      <View className="flex-row items-center justify-between mb-2">
+                        <View className="flex-1">
+                          <Text className="text-white text-lg font-bold mb-1">
+                            {ticket.name}
+                          </Text>
+                          <Text className="text-white/90 text-sm">
+                            ¥{ticket.price.toLocaleString()}
+                          </Text>
+                        </View>
+                        <View className="bg-white/20 px-4 py-2 rounded-lg">
+                          <Text className="text-white font-bold text-lg">
+                            {count}枚
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View className="flex-row items-center justify-between">
+                        <Text className="text-white/80 text-xs">
+                          タップしてカウント
+                        </Text>
+                        <View className="bg-white/30 px-3 py-1 rounded-full">
+                          <Text className="text-white text-xs font-medium">
+                            +1
+                          </Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
                   </View>
                 );
               })}
-            </View>
-          ) : (
-            <View className="items-center py-8">
-              <Ionicons name="calendar-outline" size={48} color="#d1d5db" />
-              <Text className="text-gray-400 mt-2">
-                この日の記録はありません
-              </Text>
-            </View>
-          )}
+            </ScrollView>
+          </View>
         </View>
-      </ScrollView>
+      );
+    },
+    [ticketTypes, getMemberTotal, getMemberTicketCount, handleCount]
+  );
 
-      {/* メモモーダル */}
-      <MemoModal
-        visible={showMemoModal}
-        selectedDate={selectedDate}
-        memoText={memoText}
-        hasMemo={!!dayMemo}
-        onClose={handleCloseMemoModal}
-        onMemoTextChange={setMemoText}
-        onSave={handleSaveMemo}
-        onDelete={handleDeleteMemo}
+  if (members.length === 0) {
+    return (
+      <SafeAreaView className="flex-1 bg-gray-50">
+        <View className="flex-1 items-center justify-center p-8">
+          <Ionicons name="people-outline" size={64} color="#d1d5db" />
+          <Text className="text-gray-400 text-lg mt-4 text-center">
+            メンバーが登録されていません
+          </Text>
+          <Text className="text-gray-400 text-sm mt-2 text-center">
+            設定からメンバーを追加してください
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView className="flex-1 bg-gray-50">
+      {/* 日付変更ヘッダー */}
+      <View className="bg-white border-b border-gray-200 px-4 py-3">
+        <View className="flex-row items-center justify-between">
+          <TouchableOpacity
+            onPress={() => changeDate(-1)}
+            className="p-2 bg-gray-100 rounded-lg"
+          >
+            <Ionicons name="chevron-back" size={24} color="#6366f1" />
+          </TouchableOpacity>
+
+          <View className="flex-1 items-center mx-4">
+            <TouchableOpacity
+              onPress={goToToday}
+              className="px-4 py-2 bg-indigo-50 rounded-lg"
+            >
+              <Text className="text-indigo-600 font-bold text-lg">
+                {formatDate(selectedDate)}
+              </Text>
+              {selectedDate !== new Date().toISOString().split("T")[0] && (
+                <Text className="text-indigo-400 text-xs text-center mt-0.5">
+                  タップで今日に戻る
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            onPress={() => changeDate(1)}
+            className="p-2 bg-gray-100 rounded-lg"
+          >
+            <Ionicons name="chevron-forward" size={24} color="#6366f1" />
+          </TouchableOpacity>
+        </View>
+
+        {/* 全体の合計 */}
+        <View className="flex-row mt-3 pt-3 border-t border-gray-100">
+          <View className="flex-1 items-center">
+            <Text className="text-gray-500 text-xs mb-1">合計枚数</Text>
+            <Text className="text-indigo-600 text-lg font-bold">
+              {grandTotal.count}枚
+            </Text>
+          </View>
+          <View className="flex-1 items-center border-l border-gray-200">
+            <Text className="text-gray-500 text-xs mb-1">合計金額</Text>
+            <Text className="text-green-600 text-lg font-bold">
+              ¥{grandTotal.amount.toLocaleString()}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      {/* 推しインジケーター */}
+      <View className="bg-white border-b border-gray-200 py-3">
+        <View className="flex-row justify-center items-center space-x-2">
+          {members.map((member, index) => (
+            <TouchableOpacity
+              key={member.id}
+              onPress={() => {
+                flatListRef.current?.scrollToIndex({
+                  index,
+                  animated: true,
+                });
+              }}
+              className="items-center"
+            >
+              {/* ドットインジケーター */}
+              <View
+                className={`rounded-full mb-1 ${
+                  index === currentMemberIndex
+                    ? "w-8 h-2"
+                    : "w-2 h-2 opacity-40"
+                }`}
+                style={{ backgroundColor: member.color }}
+              />
+              {/* 名前表示（選択中のみ） */}
+              {index === currentMemberIndex && (
+                <Text className="text-xs text-gray-600 font-medium">
+                  {member.name}
+                </Text>
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* ページ番号 */}
+        <Text className="text-center text-gray-400 text-xs mt-2">
+          {currentMemberIndex + 1} / {members.length}
+        </Text>
+      </View>
+
+      {/* 推しカードのスワイプリスト */}
+      <FlatList
+        ref={flatListRef}
+        data={members}
+        renderItem={renderMemberCard}
+        keyExtractor={(item) => item.id}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
+        getItemLayout={(data, index) => ({
+          length: 400,
+          offset: 400 * index,
+          index,
+        })}
       />
     </SafeAreaView>
   );
