@@ -14,6 +14,13 @@ interface CountStore {
     pricePerItem: number
   ) => void;
 
+  addRecord: (
+    memberId: string,
+    ticketTypeId: string,
+    count: number,
+    date: string
+  ) => void;
+
   incrementCount: (
     memberId: string,
     ticketTypeId: string,
@@ -53,6 +60,28 @@ export const useCountStore = create<CountStore>()(
               count,
               pricePerItem,
               totalPrice: count * pricePerItem,
+              createdAt: now.toISOString(),
+              updatedAt: now.toISOString(),
+            },
+          ],
+        }));
+      },
+
+      addRecord: (memberId, ticketTypeId, count, date) => {
+        const now = new Date();
+
+        set((state) => ({
+          records: [
+            ...state.records,
+            {
+              id: `record_${Date.now()}_${Math.random()
+                .toString(36)
+                .substr(2, 9)}`,
+              date,
+              timestamp: now.toISOString(),
+              memberId,
+              ticketTypeId,
+              count,
               createdAt: now.toISOString(),
               updatedAt: now.toISOString(),
             },
@@ -111,7 +140,7 @@ export const useCountStore = create<CountStore>()(
                   ...updates,
                   totalPrice:
                     (updates.count || r.count) *
-                    (updates.pricePerItem || r.pricePerItem),
+                    (updates.pricePerItem || r.pricePerItem || 0),
                   updatedAt: new Date().toISOString(),
                 }
               : r

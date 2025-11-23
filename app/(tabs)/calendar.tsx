@@ -24,8 +24,8 @@ export default function CalendarScreen() {
   const members = useMemberStore((state) => state.members);
   const ticketTypes = useTicketStore((state) => state.ticketTypes);
   const memos = useMemoStore((state) => state.memos);
-  const addMemo = useMemoStore((state) => state.addMemo);
-  const updateMemo = useMemoStore((state) => state.updateMemo);
+  const setMemo = useMemoStore((state) => state.setMemo);
+  const getMemo = useMemoStore((state) => state.getMemo);
   const deleteMemo = useMemoStore((state) => state.deleteMemo);
 
   // 年月を変更
@@ -67,7 +67,9 @@ export default function CalendarScreen() {
     return records.filter((r) => r.date === selectedDateStr);
   }, [records, selectedDateStr]);
 
-  const dayMemo = (useMemos) => memos.find((m) => m.date === selectedDateStr);
+  const dayMemo = useMemo(() => {
+    return memos[selectedDateStr] || "";
+  }, [memos, selectedDateStr]);
 
   // 日付ごとのカウント数を計算
   const dateCountMap = useMemo(() => {
@@ -96,12 +98,7 @@ export default function CalendarScreen() {
       return;
     }
 
-    if (dayMemo) {
-      updateMemo(dayMemo.id, memoText.trim());
-    } else {
-      addMemo(selectedDateStr, memoText.trim());
-    }
-
+    setMemo(selectedDateStr, memoText.trim());
     setShowMemoModal(false);
     setMemoText("");
   };
@@ -115,7 +112,7 @@ export default function CalendarScreen() {
           text: "削除",
           style: "destructive",
           onPress: () => {
-            deleteMemo(dayMemo.id);
+            deleteMemo(selectedDateStr);
             setShowMemoModal(false);
             setMemoText("");
           },
@@ -126,7 +123,7 @@ export default function CalendarScreen() {
 
   // メモモーダルを開く
   const openMemoModal = () => {
-    setMemoText(dayMemo?.content || "");
+    setMemoText(dayMemo || "");
     setShowMemoModal(true);
   };
 
@@ -254,7 +251,7 @@ export default function CalendarScreen() {
           {/* メモ表示 */}
           {dayMemo && (
             <View className="bg-yellow-50 p-3 rounded-lg mb-4 border border-yellow-200">
-              <Text className="text-gray-700">{dayMemo.content}</Text>
+              <Text className="text-gray-700">{dayMemo}</Text>
             </View>
           )}
 
