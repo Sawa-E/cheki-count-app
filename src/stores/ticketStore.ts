@@ -29,7 +29,7 @@ export const useTicketStore = create<TicketStore>()(
               ...ticket,
               id: `ticket_${Date.now()}_${Math.random()
                 .toString(36)
-                .substr(2, 9)}`,
+                .substring(2, 11)}`,
               createdAt: new Date().toISOString(),
             },
           ],
