@@ -1,57 +1,68 @@
-import React from 'react';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Link, Tabs } from 'expo-router';
-import { Pressable } from 'react-native';
+import { Tabs } from "expo-router";
+import { Platform, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
 
-// You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
-function TabBarIcon(props: {
-  name: React.ComponentProps<typeof FontAwesome>['name'];
-  color: string;
-}) {
-  return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
-}
-
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  // 下部の安全領域を考慮した高さ
+  const tabBarHeight = Platform.OS === "ios" ? 70 + insets.bottom : 70;
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
-      }}>
+        tabBarActiveTintColor: "#2563EB",
+        tabBarInactiveTintColor: "#9CA3AF",
+        headerShown: false,
+        tabBarStyle: {
+          backgroundColor: "#FFFFFF",
+          borderTopWidth: 1,
+          borderTopColor: "#E5E7EB",
+          height: tabBarHeight,
+          paddingTop: 12,
+          paddingBottom: Platform.OS === "ios" ? insets.bottom + 4 : 12,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: "600",
+          marginTop: 4,
+        },
+        tabBarIconStyle: {
+          marginTop: 8, // さらに上に
+        },
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable>
-                {({ pressed }) => (
-                  <FontAwesome
-                    name="info-circle"
-                    size={25}
-                    color={Colors[colorScheme ?? 'light'].text}
-                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
+          title: "記録",
+          tabBarIcon: ({ color }) => (
+            <View className="w-7 h-7 items-center justify-center">
+              <Text style={{ color, fontSize: 24 }}>📝</Text>
+            </View>
           ),
         }}
       />
       <Tabs.Screen
-        name="two"
+        name="calendar"
         options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
+          title: "カレンダー",
+          tabBarIcon: ({ color }) => (
+            <View className="w-7 h-7 items-center justify-center">
+              <Text style={{ color, fontSize: 24 }}>📊</Text>
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: "設定",
+          tabBarIcon: ({ color }) => (
+            <View className="w-7 h-7 items-center justify-center">
+              <Text style={{ color, fontSize: 24 }}>⚙️</Text>
+            </View>
+          ),
         }}
       />
     </Tabs>
